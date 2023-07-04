@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualize</title>
+
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+        integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
+
+    <style>
+        table,
+        thead,
+        th,
+        tbody,
+        tr,
+        td {
+            border: 1px solid;
+        }
+
+        html,
+        body {
+            padding: 0;
+            margin: 5px;
+            height: 50%;
+            background-color: rgb(240, 227, 205);
+        }
+
+        /* rgb(188, 214, 203)  rgb(220, 214, 204); rgb(240, 227, 205)*/
+
+        #map {
+            height: 600px;
+        }
+
+        select {
+            height: 20px;
+            width: 100px;
+            margin: 5px 40px 5px 0px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: rgb(65, 58, 209);
+            text-shadow: 10px 10px 4px gray;
+        }
+    </style>
+
+</head>
+
+<body id="btn_request" onload="getData()">
+    <h2>垃圾車點位路線資訊</h2>
+
+    區域：
+    <select id="area" onchange="getMarker_area(res)"></select>
+    分隊：
+    <select id="team" onchange="getMarker_team(res)"></select>
+    里別：
+    <select id="ribe" onchange="getMarker_ribe(res)"></select>
+    路線：
+    <select id="roadLine" onchange="getMarker_roadLine(res)"></select>
+    速度：
+    <select id="speed">
+        <option value="60">x60 (預設)
+        <option value="1">x1
+        <option value="10">x10
+        <option value="60">x60
+            <!-- <option value="120">x120 -->
+        <option value="300">x300
+        <option value="600">x600
+    </select>
+    時間:
+    <font id="tm"></font>
+
+    <div id="map"></div>
+    <table>
+        <thead>
+            <tr>
+                <th>id</th>
+                <th>行政區</th>
+                <th>分隊</th>
+                <th>里別</th>
+                <th>車號</th>
+                <th>路線</th>
+                <th>車次</th>
+                <th>抵達時間</th>
+                <th>離開時間</th>
+                <th>地點</th>
+                <th>緯度</th>
+                <th>經度</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+        integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+
+    <script src="http://ewoken.github.io/Leaflet.MovingMarker/MovingMarker.js"></script>
+
+    <script>
+        var res; //儲存res data
+
+        //新增地圖
+        var map = L.map(document.getElementById('map'), {
+            center: [25.033913, 121.5434129],
+            zoom: 12,
+            crs: L.CRS.EPSG3857,
+        });
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '<font id="times" face="impact"></font>'
+            //id: 'mapbox.streets'
+        }).addTo(map);
+
+        let roadList = ['all'];
+        let areaList = ['all'];
+        let ribeList = ['all'];
+        let teamList = ['all'];
+
+        //設定圖層群組
+        let layerGroup = null;
+        let lineGroup = null;
+        let arrMarker = []; //圖標群組
+        let arrLine = [];  //線條群組
+
+        // 取得 Web API 的回傳資料
+        function getData() {
+            fetch('http://127.0.0.1:5000/all_garbage_trucks_in_taipei', {
+                method: "GET"
+            }).then(function (response) {
+                return response.json();
+            }).then(function (arr) {
+
+                res = arr;
+                //console.log(res)
+                let area = []; //存放所有行政區
+                let ribe = []; //存放所有里別
+                let team = []; //存放所有分隊
+                let roadLine = []; //存放所有路線
+
+                //取得行政區、里別、分隊、路線陣列
+                for (let o of arr) {
+                    if (roadLine.indexOf(o['路線']) == -1) {
+                        roadLine.push(o['路線']);
+                        roadList.push(o['路線']);
+                    }
+                    if (area.indexOf(o['行政區']) == -1) {
+                        area.push(o['行政區']);
+                        areaList.push(o['行政區']);
+                    }
+                    if (ribe.indexOf(o['里別']) == -1) {
+                        ribe.push(o['里別']);
+                        ribeList.push(o['里別']);
+                    }
+                    if (team.indexOf(o['分隊']) == -1) {
+                        team.push(o['分隊']);
+                        teamList.push(o['分隊']);
+                    }
+                }
+
+                //產生行政區的下拉式選單
+                for (let n of area) {
+                    var txt = '<option value="None">請選擇';
+                    txt += '<option value="all">all';
+                    for (let i = 1; i < area.length; i++) {
+                        txt += '<option value="' + area[i] + '">' + area[i];
+                    }
+                }
+                document.getElementById("area").innerHTML = txt;
+
+                //產生路線的下拉式選單
+                for (let n of roadLine) {
+                    var txt = '<option value="None">請選擇';
+                    for (let i = 1; i < roadLine.length; i++) {
+                        txt += '<option value="' + roadLine[i] + '">' + roadLine[i];
+                    }
+                }
+                document.getElementById("roadLine").innerHTML = txt;
+
+                //產生里別的下拉式選單
+                for (let n of ribe) {
+                    var txt = '<option value="None">請選擇';
+                    for (let i = 1; i < ribe.length; i++) {
+                        txt += '<option value="' + ribe[i] + '">' + ribe[i];
+                    }
+                }
+                document.getElementById("ribe").innerHTML = txt;
+
+                //產生分隊的下拉式選單
+                for (let n of team) {
+                    var txt = '<option value="None">請選擇';
+                    for (let i = 1; i < team.length; i++) {
+                        txt += '<option value="' + team[i] + '">' + team[i];
+                    }
+                }
+                document.getElementById("team").innerHTML = txt;
+
+
+                // 取得 tbody 元素
+                let tbody = document.querySelector('table > tbody');
+                //顯示所有資料
+                for (let o of arr) {
+                    insertData(o);
+                }
+            })
+        }
+
+        //獲得圖標-區域
+        function getMarker_area(res) {
+            // 將其他下拉選單重置
+            document.getElementById("ribe").value = "None"
+            document.getElementById("team").value = "None"
+            document.getElementById("roadLine").value = "None"
+
+            // 用於刪除原本所有的圖標與線條
+            lineGroup = L.layerGroup(arrLine);
+            layerGroup = L.layerGroup(arrMarker);
+
+            lineGroup.addTo(map);
+            layerGroup.addTo(map);
+
+            // 終止原先在執行的無窮迴圈
+            if (typeof timerID != 'undefined') {
+                clearInterval(timerID)
+            }
+
+            if (typeof timerID_marker != 'undefined') {
+                clearInterval(timerID_marker)
+            }
+
+            //刪除先前的 markers
+            if (layerGroup != null && map.hasLayer(layerGroup)) {
+                layerGroup.clearLayers();
+                lineGroup.clearLayers();
+                map.removeLayer(layerGroup);
+                map.removeLayer(lineGroup);
+
+                //變數初始化
+                layerGroup = null;
+                lineGroup = null;
+                arrMarker = [];
+                arrLine = [];
+            }
+
+            // 取得 tbody 元素
+            let tbody = document.querySelector('table > tbody');
+
+            // 清空 tbody 底下既有元素，如 tr td 等
+            tbody.innerHTML = '';
+
+            let roadLine = []; //存放所有路線
+
+            // 取得下拉式選單所選值 在所有區域陣列中的位置
+            let index_area = areaList.indexOf(document.getElementById('area').value);
+            //產生資料列表
+            let minTm = 10000;
+            //let maxTm = 0;
+            for (let o of res) {
+                if (o['行政區'] == areaList[index_area]) {
+                    if (o['抵達時間'] < minTm) {
+                        minTm = o['抵達時間'];
+                    }
+                    // if (o['離開時間'] > maxTm) {
+                    //     maxTm = o['離開時間'];
+                    // }
+                    insertData(o);
+                    if (roadLine.indexOf(o['路線']) == -1) {
+                        roadLine.push(o['路線']);
+                        roadList.push(o['路線']);
+                    }
+                }
+                if (document.getElementById('area').value == 'all') {
+                    if (o['抵達時間'] < minTm) {
+                        minTm = o['抵達時間'];
+                    }
+                    insertData(o)
+                    if (roadLine.indexOf(o['路線']) == -1) {
+                        roadLine.push(o['路線']);
+                        roadList.push(o['路線']);
+                    }
+                }
+            }
+
+            minTime = new Date(2023, 4, 18, minTm.substring(0, 2), minTm.substring(2))
+            //minTime.setTime(minTime.getTime() - 5000)
+
+            timerID = reDo()
+
+            //產生每台車的圖標
+            let route = []; //存放每台車的路線陣列  [ [第一台],[第二台],[],... ]
+            let times = []; //存放每台車的停留時間  [ [第一台],[第二台],[],... ]
+            let start = []; //每台車的出發時間
+
+            for (let i = 0; i < roadLine.length; i++) { //走訪每一台不同路線的垃圾車
+                let car = []; //記錄這台車的停留位置
+                let time = []; //記錄這台車的所有抵達時間與離開時間
+                let staytime = [] //紀錄這台車每個位置的停留時間
+                for (let o of res) {
+                    if (o['行政區'] == areaList[index_area]) {
+                        if (o['路線'] == roadLine[i]) {
+                            if (o['經度'] > o['緯度']) {
+                                car.push([o['經度'], o['緯度']]); //不同路線的停留位置
+                                car.push([o['經度'], o['緯度']]);
+                            } else {
+                                car.push([o['緯度'], o['經度']]);
+                                car.push([o['緯度'], o['經度']]);
+                            }
+                            time.push(o['抵達時間']); //抵達時間
+                            time.push(o['離開時間']); //離開時間
+                        }
+                    }
+                    if (document.getElementById('area').value == 'all') {
+                        if (o['路線'] == roadLine[i]) {
+                            if (o['經度'] > o['緯度']) {
+                                car.push([o['經度'], o['緯度']]); //不同路線的停留位置
+                                car.push([o['經度'], o['緯度']]);
+                            } else {
+                                car.push([o['緯度'], o['經度']]);
+                                car.push([o['緯度'], o['經度']]);
+                            }
+                            time.push(o['抵達時間']); //抵達時間
+                            time.push(o['離開時間']); //離開時間
+                        }
+                    }
+                }
+                start.push(time[0])
+                route.push(car);
+                //計算這台車每個位置的停留時間
+                for (let j = 1; j < time.length; j++) {
+                    let aftime = new Date(2023, 4, 18, time[j].substring(0, 2), time[j].substring(2))
+                    let bftime = new Date(2023, 4, 18, time[j - 1].substring(0, 2), time[j - 1].substring(2))
+                    staytime.push((aftime - bftime) / document.getElementById("speed").value);
+                }
+                times.push(staytime);
+            }
+
+            //產生所有圖標與路線
+            if (document.getElementById('area').value != 'all') {
+                if (document.getElementById('speed').value == 300) {
+                    timerID_marker = setInterval(reDo_Marker, 250)
+                } else {
+                    timerID_marker = setInterval(reDo_Marker, 950)
+                }
+                function reDo_Marker() {
+                    for (let i = 0; i < route.length; i++) {
+                        a = new Date(2023, 4, 18, start[i].substring(0, 2), start[i].substring(2))
+                        b = new Date(document.getElementById('times').innerHTML)
+                        if (a.getHours() == b.getHours() && a.getMinutes() == b.getMinutes()) {
+                            let marker = L.Marker.movingMarker(route[i], times[i], { autostart: true });
+                            line = L.polyline(route[i], { color: '#00E3E3' });
+                            marker.addTo(map);
+                            line.addTo(map)
+                            map.fitBounds(route[i]);
+
+                            //將 markers 各別放到空陣列 arrLayers 當中
+                            arrMarker.push(marker);
+                            arrLine.push(line);
+                        }
+                    }
+                }
+            }
+            if (document.getElementById('area').value == 'all') {
+                if (typeof timerID != 'undefined') {
+                    clearInterval(timerID)
+                }
+                document.getElementById("times").innerHTML = '';
+                document.getElementById("tm").innerHTML = '';
+                //產生所有圖標與路線
+                for (let i = 0; i < route.length; i++) {
+                    let marker = L.Marker.movingMarker(route[i], times[i], { autostart: true });
+                    line = L.polyline(route[i], { color: '#00E3E3' });
+                    marker.addTo(map);
+                    line.addTo(map)
+                    map.fitBounds(route[i]);
+
+                    //將 markers 各別放到空陣列 arrLayers 當中
+                    arrMarker.push(marker);
+                    arrLine.push(line);
+                }
+            }
+        }
+
+        // 里別
+        function getMarker_ribe(res) {
+            document.getElementById("area").value = "None"
+            document.getElementById("team").value = "None"
+            document.getElementById("roadLine").value = "None"
+
+            lineGroup = L.layerGroup(arrLine);
+            layerGroup = L.layerGroup(arrMarker);
+
+            lineGroup.addTo(map);
+            layerGroup.addTo(map);
+
+            //停止迴圈
+            if (typeof timerID != 'undefined') {
+                clearInterval(timerID)
+            }
+
+            if (typeof timerID_marker != 'undefined') {
+                clearInterval(timerID_marker)
+            }
+
+            //刪除先前的 markers
+            if (layerGroup != null && map.hasLayer(layerGroup)) {
+                layerGroup.clearLayers();
+                lineGroup.clearLayers();
+                map.removeLayer(layerGroup);
+                map.removeLayer(lineGroup);
+
+                //變數初始化
+                layerGroup = null;
+                lineGroup = null;
+                arrMarker = [];
+                arrLine = [];
+            }
+
+            // 取得 tbody 元素
+            let tbody = document.querySelector('table > tbody');
+
+            // 清空 tbody 底下既有元素，如 tr td 等
+            tbody.innerHTML = '';
+
+            let roadLine = []; //存放所有路線
+
+            let index_ribe = ribeList.indexOf(document.getElementById('ribe').value);
+            //產生資料列表
+            let minTm = 10000;
+            for (let o of res) {
+                if (o['里別'] == ribeList[index_ribe]) {
+                    if (o['抵達時間'] < minTm) {
+                        minTm = o['抵達時間'];
+                    }
+                    insertData(o);
+                    if (roadLine.indexOf(o['路線']) == -1) {
+                        roadLine.push(o['路線']);
+                        roadList.push(o['路線']);
+                    }
+                }
+            }
+
+            minTime = new Date(2023, 4, 18, minTm.substring(0, 2), minTm.substring(2))
+            //minTime.setTime(minTime.getTime() - 5000)
+
+            timerID = reDo()
+
+            //產生每台車的圖標
+            let route = []; //存放每台車的路線陣列  [ [第一台],[第二台],[],... ]
+            let times = []; //存放每台車的停留時間  [ [第一台],[第二台],[],... ]
+            let start = []; //每台車的出發時間
+
+            for (let i = 0; i < roadLine.length; i++) { //走訪每一台不同路線的垃圾車
+                let car = []; //記錄這台車的停留位置
+                let time = []; //記錄這台車的所有抵達時間與離開時間
+                let staytime = [] //紀錄這台車每個位置的停留時間
+                for (let o of res) {
+                    if (o['里別'] == ribeList[index_ribe]) {
+                        if (o['路線'] == roadLine[i]) {
+                            if (o['經度'] > o['緯度']) {
+                                car.push([o['經度'], o['緯度']]); //不同路線的停留位置
+                                car.push([o['經度'], o['緯度']]);
+                            } else {
+                                car.push([o['緯度'], o['經度']]);
+                                car.push([o['緯度'], o['經度']]);
+                            }
+                            time.push(o['抵達時間']); //抵達時間
+                            time.push(o['離開時間']); //離開時間
+                        }
+                    }
+                }
+                start.push(time[0])
+                route.push(car);
+                //計算這台車每個位置的停留時間
+                for (let j = 1; j < time.length; j++) {
+                    let aftime = new Date(2023, 4, 18, time[j].substring(0, 2), time[j].substring(2))
+                    let bftime = new Date(2023, 4, 18, time[j - 1].substring(0, 2), time[j - 1].substring(2))
+                    staytime.push((aftime - bftime) / document.getElementById("speed").value);
+                }
+                times.push(staytime);
+            }
+
+            //產生所有圖標與路線
+            if (document.getElementById('speed').value == 300) {
+                timerID_marker = setInterval(reDo_Marker, 250)
+            } else {
+                timerID_marker = setInterval(reDo_Marker, 950)
+            }
+            function reDo_Marker() {
+                for (let i = 0; i < route.length; i++) {
+                    a = new Date(2023, 4, 18, start[i].substring(0, 2), start[i].substring(2))
+                    b = new Date(document.getElementById('times').innerHTML)
+                    if (a.getHours() == b.getHours() && a.getMinutes() == b.getMinutes()) {
+                        let marker = L.Marker.movingMarker(route[i], times[i], { autostart: true });
+                        line = L.polyline(route[i], { color: '#00E3E3' });
+                        marker.addTo(map);
+                        line.addTo(map)
+                        map.fitBounds(route[i]);
+
+                        //將 markers 各別放到空陣列 arrLayers 當中
+                        arrMarker.push(marker);
+                        arrLine.push(line);
+                    }
+                }
+            }
+
+            lineGroup = L.layerGroup(arrLine);
+            layerGroup = L.layerGroup(arrMarker);
+            //lineGroup.addTo(map);
+            //layerGroup.addTo(map);
+        }
+
+        // 分隊
+        function getMarker_team(res) {
+            document.getElementById("ribe").value = "None"
+            document.getElementById("area").value = "None"
+            document.getElementById("roadLine").value = "None"
+
+            lineGroup = L.layerGroup(arrLine);
+            layerGroup = L.layerGroup(arrMarker);
+
+            lineGroup.addTo(map);
+            layerGroup.addTo(map);
+
+            if (typeof timerID != 'undefined') {
+                clearInterval(timerID)
+            }
+
+            if (typeof timerID_marker != 'undefined') {
+                clearInterval(timerID_marker)
+            }
+
+            //刪除先前的 markers
+            if (layerGroup != null && map.hasLayer(layerGroup)) {
+                layerGroup.clearLayers();
+                lineGroup.clearLayers();
+                map.removeLayer(layerGroup);
+                map.removeLayer(lineGroup);
+
+                //變數初始化
+                layerGroup = null;
+                lineGroup = null;
+                arrMarker = [];
+                arrLine = [];
+            }
+
+            // 取得 tbody 元素
+            let tbody = document.querySelector('table > tbody');
+
+            // 清空 tbody 底下既有元素，如 tr td 等
+            tbody.innerHTML = '';
+
+            let roadLine = []; //存放所有路線
+
+            let index_team = teamList.indexOf(document.getElementById('team').value);
+            //產生資料列表
+            let minTm = 10000;
+            let maxTm = 0;
+            for (let o of res) {
+                if (o['分隊'] == teamList[index_team]) {
+                    if (o['抵達時間'] < minTm) {
+                        minTm = o['抵達時間'];
+                    }
+                    if (o['離開時間'] > maxTm) {
+                        maxTm = o['離開時間'];
+                    }
+                    insertData(o);
+                    if (roadLine.indexOf(o['路線']) == -1) {
+                        roadLine.push(o['路線']);
+                        roadList.push(o['路線']);
+                    }
+                }
+            }
+
+            minTime = new Date(2023, 4, 18, minTm.substring(0, 2), minTm.substring(2))
+            //maxTime = new Date(2023, 4, 18, maxTm.substring(0, 2), maxTm.substring(2))
+
+            timerID = reDo()
+
+            //產生每台車的圖標
+            let route = []; //每台車的路線陣列  [ [第一台],[第二台],[],... ]
+            let times = []; //每台車的停留時間  [ [第一台],[第二台],[],... ]
+            let start = []; //每台車的出發時間
+
+            for (let i = 0; i < roadLine.length; i++) { //走訪每一台不同路線的垃圾車
+                let car = []; //記錄這台車的停留位置
+                let time = []; //記錄這台車的所有抵達時間與離開時間
+                let staytime = [] //紀錄這台車每個位置的停留時間
+                for (let o of res) {
+                    if (o['分隊'] == teamList[index_team]) {
+                        if (o['路線'] == roadLine[i]) {
+                            if (o['經度'] > o['緯度']) {
+                                car.push([o['經度'], o['緯度']]); //不同路線的停留位置
+                                car.push([o['經度'], o['緯度']]);
+                            } else {
+                                car.push([o['緯度'], o['經度']]);
+                                car.push([o['緯度'], o['經度']]);
+                            }
+                            time.push(o['抵達時間']); //抵達時間
+                            time.push(o['離開時間']); //離開時間
+                        }
+                    }
+                }
+                start.push(time[0])
+                route.push(car);
+                //計算這台車每個位置的停留時間
+                for (let j = 1; j < time.length; j++) {
+                    let aftime = new Date(2023, 4, 18, time[j].substring(0, 2), time[j].substring(2))
+                    let bftime = new Date(2023, 4, 18, time[j - 1].substring(0, 2), time[j - 1].substring(2))
+                    staytime.push((aftime - bftime) / document.getElementById("speed").value);
+                }
+                times.push(staytime);
+            }
+
+            if (document.getElementById('speed').value == 300) {
+                timerID_marker = setInterval(reDo_Marker, 250)
+            } else {
+                timerID_marker = setInterval(reDo_Marker, 950)
+            }
+            function reDo_Marker() {
+                for (let i = 0; i < route.length; i++) {
+                    a = new Date(2023, 4, 18, start[i].substring(0, 2), start[i].substring(2))
+                    b = new Date(document.getElementById('times').innerHTML)
+                    if (a.getHours() == b.getHours() && a.getMinutes() == b.getMinutes()) {
+                        let marker = L.Marker.movingMarker(route[i], times[i], { autostart: true });
+                        line = L.polyline(route[i], { color: '#00E3E3' });
+                        marker.addTo(map);
+                        line.addTo(map)
+                        map.fitBounds(route[i]);
+
+                        //將 markers 各別放到空陣列 arrLayers 當中
+                        arrMarker.push(marker);
+                        arrLine.push(line);
+                    }
+                }
+            }
+
+            lineGroup = L.layerGroup(arrLine);
+            layerGroup = L.layerGroup(arrMarker);
+            //lineGroup.addTo(map);
+            //layerGroup.addTo(map);
+        }
+
+        //路線
+        function getMarker_roadLine(res) {
+            document.getElementById("ribe").value = "None"
+            document.getElementById("team").value = "None"
+            document.getElementById("area").value = "None"
+
+            lineGroup = L.layerGroup(arrLine);
+            layerGroup = L.layerGroup(arrMarker);
+
+            lineGroup.addTo(map);
+            layerGroup.addTo(map);
+
+            if (typeof timerID != 'undefined') {
+                clearInterval(timerID)
+            }
+
+            if (typeof timerID_marker != 'undefined') {
+                clearInterval(timerID_marker)
+            }
+
+            //刪除先前的 markers
+            if (layerGroup != null && map.hasLayer(layerGroup)) {
+                layerGroup.clearLayers();
+                lineGroup.clearLayers();
+                map.removeLayer(layerGroup);
+                map.removeLayer(lineGroup);
+
+                //變數初始化
+                layerGroup = null;
+                lineGroup = null;
+                arrMarker = [];
+                arrLine = [];
+            }
+
+            // 取得 tbody 元素
+            let tbody = document.querySelector('table > tbody');
+
+            // 清空 tbody 底下既有元素，如 tr td 等
+            tbody.innerHTML = '';
+
+            let roadLine = []; //存放所有路線
+
+            let index_roadLine = roadList.indexOf(document.getElementById('roadLine').value);
+            //產生資料列表
+            let minTm = 10000;
+            for (let o of res) {
+                if (o['路線'] == roadList[index_roadLine]) {
+                    if (o['抵達時間'] < minTm) {
+                        minTm = o['抵達時間'];
+                    }
+                    insertData(o)
+                    if (roadLine.indexOf(o['路線']) == -1) {
+                        roadLine.push(o['路線']);
+                        roadList.push(o['路線']);
+                    }
+                }
+            }
+
+            minTime = new Date(2023, 4, 18, minTm.substring(0, 2), minTm.substring(2))
+            // minTime = minTime.setTime(minTime.getTime() - 5000)
+
+            timerID = reDo()
+
+            //產生每台車的圖標
+            let route = []; //存放每台車的路線陣列  [ [第一台],[第二台],[],... ]
+            let times = []; //存放每台車的停留時間  [ [第一台],[第二台],[],... ]
+            let start = []; //每台車的出發時間
+
+            for (let i = 0; i < roadLine.length; i++) { //走訪每一台不同路線的垃圾車
+                let car = []; //記錄這台車的停留位置
+                let time = []; //記錄這台車的所有抵達時間與離開時間
+                let staytime = [] //紀錄這台車每個位置的停留時間
+                for (let o of res) {
+                    if (o['路線'] == roadList[index_roadLine]) {
+                        if (o['路線'] == roadLine[i]) {
+                            if (o['經度'] > o['緯度']) {
+                                car.push([o['經度'], o['緯度']]); //不同路線的停留位置
+                                car.push([o['經度'], o['緯度']]);
+                            } else {
+                                car.push([o['緯度'], o['經度']]);
+                                car.push([o['緯度'], o['經度']]);
+                            }
+                            time.push(o['抵達時間']); //抵達時間
+                            time.push(o['離開時間']); //離開時間
+                        }
+                    }
+                }
+                start.push(time[0])
+                route.push(car);
+                //計算這台車每個位置的停留時間
+                for (let j = 1; j < time.length; j++) {
+                    let aftime = new Date(2023, 4, 18, time[j].substring(0, 2), time[j].substring(2))
+                    let bftime = new Date(2023, 4, 18, time[j - 1].substring(0, 2), time[j - 1].substring(2))
+                    staytime.push((aftime - bftime) / document.getElementById("speed").value);
+                }
+                times.push(staytime);
+            }
+
+            //產生所有圖標與路線
+            if (document.getElementById('speed').value == 300) {
+                timerID_marker = setInterval(reDo_Marker, 250)
+            } else {
+                timerID_marker = setInterval(reDo_Marker, 950)
+            }
+            function reDo_Marker() {
+                for (let i = 0; i < route.length; i++) {
+                    a = new Date(2023, 4, 18, start[i].substring(0, 2), start[i].substring(2))
+                    b = new Date(document.getElementById('times').innerHTML)
+                    if (a.getHours() == b.getHours() && a.getMinutes() == b.getMinutes()) {
+                        let marker = L.Marker.movingMarker(route[i], times[i], { autostart: true });
+                        line = L.polyline(route[i], { color: '#00E3E3' });
+                        marker.addTo(map);
+                        line.addTo(map)
+                        map.fitBounds(route[i]);
+
+                        //將 markers 各別放到空陣列 arrLayers 當中
+                        arrMarker.push(marker);
+                        arrLine.push(line);
+                    }
+                }
+            }
+
+            lineGroup = L.layerGroup(arrLine);
+            layerGroup = L.layerGroup(arrMarker);
+            //lineGroup.addTo(map);
+            //layerGroup.addTo(map);
+        }
+
+        function reDo() {
+            timerID = setInterval(change, 1000 / document.getElementById("speed").value);
+            return timerID;
+        }
+
+        function change() {
+            minTime.setTime(minTime.getTime() + 1000);
+            hour = String(minTime.getHours());
+            if (String(minTime.getMinutes()).length < 2) {
+                min = "0" + String(minTime.getMinutes());
+            } else {
+                min = String(minTime.getMinutes());
+            }
+            document.getElementById("times").innerHTML = minTime;
+            document.getElementById("tm").innerHTML = hour + ":" + min;
+        }
+    </script>
+
+    <script>
+        function insertData(o) {
+            // 取得 tbody 元素
+            let tbody = document.querySelector('table > tbody');
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td>${o['_id']}</td>
+                        <td>${o['行政區']}</td>
+                        <td>${o['分隊']}</td>
+                        <td>${o['里別']}</td>
+                        <td>${o['車號']}</td>
+                        <td>${o['路線']}</td>
+                        <td>${o['車次']}</td>
+                        <td>${o['抵達時間']}</td>
+                        <td>${o['離開時間']}</td>
+                        <td>${o['地點']}</td>
+                        <td>${o['經度']}</td>
+                        <td>${o['緯度']}</td>`;
+            tbody.appendChild(tr);
+        }
+
+    </script>
+
+
+</body>
+
+</html>
