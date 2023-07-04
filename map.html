@@ -300,12 +300,12 @@
                 for (let o of res) {
                     if (o['行政區'] == areaList[index_area]) {
                         if (o['路線'] == roadLine[i]) {
-                            if (o['經度'] > o['緯度']) {
-                                car.push([o['經度'], o['緯度']]); //不同路線的停留位置
-                                car.push([o['經度'], o['緯度']]);
+                            if (o["        經度        "] > o["        緯度        "]) {
+                                car.push([o["        經度        "], o["        緯度        "]]); //不同路線的停留位置
+                                car.push([o["        經度        "], o["        緯度        "]]);
                             } else {
-                                car.push([o['緯度'], o['經度']]);
-                                car.push([o['緯度'], o['經度']]);
+                                car.push([o["        緯度        "], o["        經度        "]]);
+                                car.push([o["        緯度        "], o["        經度        "]]);
                             }
                             time.push(o['抵達時間']); //抵達時間
                             time.push(o['離開時間']); //離開時間
@@ -313,12 +313,12 @@
                     }
                     if (document.getElementById('area').value == 'all') {
                         if (o['路線'] == roadLine[i]) {
-                            if (o['經度'] > o['緯度']) {
-                                car.push([o['經度'], o['緯度']]); //不同路線的停留位置
-                                car.push([o['經度'], o['緯度']]);
+                            if (o["        經度        "] > o["        緯度        "]) {
+                                car.push([o["        經度        "], o["        緯度        "]]); //不同路線的停留位置
+                                car.push([o["        經度        "], o["        緯度        "]]);
                             } else {
-                                car.push([o['緯度'], o['經度']]);
-                                car.push([o['緯度'], o['經度']]);
+                                car.push([o["        緯度        "], o["        經度        "]]);
+                                car.push([o["        緯度        "], o["        經度        "]]);
                             }
                             time.push(o['抵達時間']); //抵達時間
                             time.push(o['離開時間']); //離開時間
@@ -458,12 +458,12 @@
                 for (let o of res) {
                     if (o['里別'] == ribeList[index_ribe]) {
                         if (o['路線'] == roadLine[i]) {
-                            if (o['經度'] > o['緯度']) {
-                                car.push([o['經度'], o['緯度']]); //不同路線的停留位置
-                                car.push([o['經度'], o['緯度']]);
+                            if (o["        經度        "] > o["        緯度        "]) {
+                                car.push([o["        經度        "], o["        緯度        "]]); //不同路線的停留位置
+                                car.push([o["        經度        "], o["        緯度        "]]);
                             } else {
-                                car.push([o['緯度'], o['經度']]);
-                                car.push([o['緯度'], o['經度']]);
+                                car.push([o["        緯度        "], o["        經度        "]]);
+                                car.push([o["        緯度        "], o["        經度        "]]);
                             }
                             time.push(o['抵達時間']); //抵達時間
                             time.push(o['離開時間']); //離開時間
@@ -590,12 +590,12 @@
                 for (let o of res) {
                     if (o['分隊'] == teamList[index_team]) {
                         if (o['路線'] == roadLine[i]) {
-                            if (o['經度'] > o['緯度']) {
-                                car.push([o['經度'], o['緯度']]); //不同路線的停留位置
-                                car.push([o['經度'], o['緯度']]);
+                            if (o["        經度        "] > o["        緯度        "]) {
+                                car.push([o["        經度        "], o["        緯度        "]]); //不同路線的停留位置
+                                car.push([o["        經度        "], o["        緯度        "]]);
                             } else {
-                                car.push([o['緯度'], o['經度']]);
-                                car.push([o['緯度'], o['經度']]);
+                                car.push([o["        緯度        "], o["        經度        "]]);
+                                car.push([o["        緯度        "], o["        經度        "]]);
                             }
                             time.push(o['抵達時間']); //抵達時間
                             time.push(o['離開時間']); //離開時間
@@ -717,12 +717,12 @@
                 for (let o of res) {
                     if (o['路線'] == roadList[index_roadLine]) {
                         if (o['路線'] == roadLine[i]) {
-                            if (o['經度'] > o['緯度']) {
-                                car.push([o['經度'], o['緯度']]); //不同路線的停留位置
-                                car.push([o['經度'], o['緯度']]);
+                            if (o["        經度        "] > o["        緯度        "]) {
+                                car.push([o["        經度        "], o["        緯度        "]]); //不同路線的停留位置
+                                car.push([o["        經度        "], o["        緯度        "]]);
                             } else {
-                                car.push([o['緯度'], o['經度']]);
-                                car.push([o['緯度'], o['經度']]);
+                                car.push([o["        緯度        "], o["        經度        "]]);
+                                car.push([o["        緯度        "], o["        經度        "]]);
                             }
                             time.push(o['抵達時間']); //抵達時間
                             time.push(o['離開時間']); //離開時間
@@ -803,8 +803,8 @@
                         <td>${o['抵達時間']}</td>
                         <td>${o['離開時間']}</td>
                         <td>${o['地點']}</td>
-                        <td>${o['經度']}</td>
-                        <td>${o['緯度']}</td>`;
+                        <td>${o["        經度        "]}</td>
+                        <td>${o["        緯度        "]}</td>`;
             tbody.appendChild(tr);
         }
 
